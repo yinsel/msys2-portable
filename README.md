@@ -55,7 +55,7 @@ fi
 ## 构建与发布
 
 - 在 GitHub Actions 中手动运行 **Build MSYS-only portable**，或提交到 `main`，获取构建产物。
-- Pull Request 会构建并验证 ZIP，成功后上传 `msys2-portable-msys-x86_64` artifact。
+- 验证通过后，在该次 Actions 运行中下载 `msys2-portable-msys-x86_64` artifact。
 - 推送以 `v` 或 `c` 开头的 tag 会在验证通过后发布 ZIP 到对应 GitHub Release。
 
 构建使用全新的 MSYS2 安装，执行 [`scripts/customize.sh`](scripts/customize.sh)，然后压缩。

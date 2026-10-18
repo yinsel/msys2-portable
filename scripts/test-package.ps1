@@ -44,6 +44,24 @@ try {
             throw "init.bat did not set machine variable $name correctly."
         }
     }
+
+    # Exercise the actual RunAs restart with a path containing spaces and
+    # parentheses. Hosted runners are already elevated, so no UAC click is needed.
+    $initTestDirectory = Join-Path $env:RUNNER_TEMP 'msys2 init test (space)'
+    New-Item -ItemType Directory -Path $initTestDirectory -Force | Out-Null
+    $initTestFile = Join-Path $initTestDirectory 'init.bat'
+    Copy-Item -LiteralPath (Join-Path $Root 'init.bat') -Destination $initTestFile -Force
+    foreach ($name in $settings.Keys) {
+        [Environment]::SetEnvironmentVariable($name, 'msys2-init-test', 'Machine')
+    }
+    & $initTestFile --elevate
+    if ($LASTEXITCODE -ne 0) { throw 'init.bat RunAs restart failed.' }
+    foreach ($name in $settings.Keys) {
+        if ([Environment]::GetEnvironmentVariable($name, 'Machine') -ne $settings[$name]) {
+            throw "Elevated init.bat did not set machine variable $name correctly."
+        }
+    }
+    Write-Host 'init.bat RunAs restart and exit-code propagation passed.'
 } finally {
     foreach ($name in $settings.Keys) {
         [Environment]::SetEnvironmentVariable($name, $previousSettings[$name], 'Machine')

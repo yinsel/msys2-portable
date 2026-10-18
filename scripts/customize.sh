@@ -16,6 +16,9 @@ fi
 
 install -Dm644 "$repo_dir/etc/profile.d/env.sh" /etc/profile.d/env.sh
 install -m644 "$repo_dir/init.bat" /init.bat
+for mirrorlist in msys mingw; do
+    install -Dm644 "$repo_dir/etc/pacman.d/mirrorlist.$mirrorlist" "/etc/pacman.d/mirrorlist.$mirrorlist"
+done
 
 if grep -qE '^[[:space:]]*db_home[[:space:]]*:' /etc/nsswitch.conf; then
     sed -i -E 's/^[[:space:]]*db_home[[:space:]]*:.*$/db_home: windows/' /etc/nsswitch.conf

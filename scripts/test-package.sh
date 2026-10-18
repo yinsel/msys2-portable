@@ -25,7 +25,27 @@ make --version >/dev/null
 ssh -V
 vim --version >/dev/null
 pacman -Q curl wget git make openssh vim
+pacman -Q msys2-runtime bash pacman
 pacman -Dk
+
+# Resolve the delivered pacman configuration, then fetch the MSYS database
+# through that configured mirror into a temporary file without upgrading.
+msys_server=$(pacman-conf --repo msys Server)
+[[ "${msys_server%/}" == 'https://mirror.nju.edu.cn/msys2/msys/x86_64' ]]
+while IFS= read -r repository; do
+    server=$(pacman-conf --repo "$repository" Server)
+    [[ "$server" == https://mirror.nju.edu.cn/msys2/* ]]
+    [[ "$server" != *$'\n'* ]]
+done < <(pacman-conf --repo-list)
+mirror_db=$(mktemp)
+trap 'rm -f -- "$mirror_db"' EXIT
+curl --fail --location --retry 2 --connect-timeout 20 --max-time 120 \
+    --output "$mirror_db" "${msys_server%/}/msys.db"
+tar -tf "$mirror_db" >/dev/null
+rm -f -- "$mirror_db"
+trap - EXIT
+printf 'NJU mirror configuration and MSYS database download passed.\n'
+
 packages=$(pacman -Qq)
 if grep -q '^mingw-w64-' <<< "$packages"; then
     printf 'Unexpected non-MSYS package.\n' >&2

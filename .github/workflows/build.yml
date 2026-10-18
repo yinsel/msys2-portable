@@ -12,8 +12,34 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    outputs:
+      release_tag: ${{ steps.version.outputs.release_tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Select archive version and release tag
+        id: version
+        shell: pwsh
+        run: |
+          $releaseTag = ''
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $releaseTag = $env:GITHUB_REF_NAME
+          } elseif ($env:GITHUB_EVENT_NAME -eq 'push' -and $env:GITHUB_REF -eq 'refs/heads/main') {
+            $changed = git diff --name-only HEAD^ HEAD -- VERSION
+            if ($LASTEXITCODE -ne 0) { throw 'Unable to check release version changes.' }
+            if ($changed -contains 'VERSION') {
+              $releaseTag = (Get-Content -LiteralPath VERSION -Raw).Trim()
+              if ($releaseTag -notmatch '^v[0-9][A-Za-z0-9._-]*$') {
+                throw 'VERSION must contain a version tag such as v2026.10.18.'
+              }
+            }
+          }
+          $version = $env:GITHUB_SHA.Substring(0, 7)
+          if ($releaseTag) { $version = $releaseTag -replace '[^A-Za-z0-9._-]', '-' }
+          "archive_version=$version" >> $env:GITHUB_OUTPUT
+          "release_tag=$releaseTag" >> $env:GITHUB_OUTPUT
 
       - id: msys2
         uses: msys2/setup-msys2@v2
@@ -39,11 +65,9 @@ jobs:
         shell: pwsh
         env:
           MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
+          ARCHIVE_VERSION: ${{ steps.version.outputs.archive_version }}
         run: |
-          $version = $env:GITHUB_SHA.Substring(0, 7)
-          if ($env:GITHUB_REF_TYPE -eq 'tag') {
-            $version = $env:GITHUB_REF_NAME -replace '[^A-Za-z0-9._-]', '-'
-          }
+          $version = $env:ARCHIVE_VERSION
           $archive = Join-Path $env:RUNNER_TEMP "msys2-portable-$version-msys-x86_64.zip"
           Push-Location $env:MSYS2_ROOT
           try {
@@ -76,12 +100,14 @@ jobs:
           compression-level: 0
 
   release:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: needs.build.outputs.release_tag != ''
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: msys2-portable-msys-x86_64
@@ -91,5 +117,8 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           artifacts: dist/*.zip
+          tag: ${{ needs.build.outputs.release_tag }}
+          commit: ${{ github.sha }}
+          bodyFile: RELEASE_NOTES.md
           allowUpdates: true
           token: ${{ secrets.GITHUB_TOKEN }}

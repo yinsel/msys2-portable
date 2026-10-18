@@ -23,7 +23,14 @@ else
     printf '\ndb_home: windows\n' >> /etc/nsswitch.conf
 fi
 
-# Preserve the upstream directory skeletons, launchers, configuration, and icons.
+# Keep only the MSYS environment and its launcher assets. These files also
+# ship in the base packages even when no MinGW toolchain is installed.
+for environment in mingw32 mingw64 ucrt64 clang32 clang64 clangarm64; do
+    rm -rf -- "/$environment"
+    rm -f -- "/$environment.exe" "/$environment.ini" "/$environment.ico" \
+        "/etc/msystem.d/${environment^^}"
+done
+
 find /var/cache/pacman/pkg -mindepth 1 -maxdepth 1 -type f -delete
 bash -n /etc/profile.d/env.sh
 pacman -Dk

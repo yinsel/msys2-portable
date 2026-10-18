@@ -33,15 +33,17 @@ if grep -q '^mingw-w64-' <<< "$packages"; then
 fi
 
 for environment in mingw32 mingw64 ucrt64 clang32 clang64 clangarm64; do
-    if [[ -d "/$environment" ]]; then
-        unexpected_file=$(find "/$environment" ! -type d -print -quit)
-        if [[ -n "$unexpected_file" ]]; then
-            printf 'Unexpected non-MSYS content: %s (%s)\n' "$unexpected_file" "$(cygpath -w "$unexpected_file")" >&2
+    for path in "/$environment" "/$environment.exe" "/$environment.ini" "/$environment.ico" \
+        "/etc/msystem.d/${environment^^}"; do
+        if [[ -e "$path" || -L "$path" ]]; then
+            printf 'Unexpected non-MSYS path: %s (%s)\n' "$path" "$(cygpath -w "$path")" >&2
             exit 1
         fi
-    fi
+    done
 done
 for file in msys2.exe msys2.ini msys2.ico msys2_shell.cmd; do
     test -s "/$file"
 done
+test -s /etc/msystem.d/MSYS
+printf 'Only MSYS environment files and launcher assets remain.\n'
 printf 'Extracted MSYS package passed startup and tool checks.\n'

@@ -23,12 +23,7 @@ else
     printf '\ndb_home: windows\n' >> /etc/nsswitch.conf
 fi
 
-# No MinGW packages are installed; discard their unused directory skeletons.
-# Preserve all upstream launchers, their configuration files, and icons.
-for environment in mingw32 mingw64 ucrt64 clang32 clang64 clangarm64; do
-    rm -rf -- "/$environment"
-done
-
+# Preserve the upstream directory skeletons, launchers, configuration, and icons.
 find /var/cache/pacman/pkg -mindepth 1 -maxdepth 1 -type f -delete
 bash -n /etc/profile.d/env.sh
 pacman -Dk

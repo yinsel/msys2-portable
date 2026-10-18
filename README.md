@@ -62,8 +62,8 @@ fi
 ZIP 根目录包含 `init.bat`、`usr`、`etc` 和官方启动器、配置文件、图标；构建用户的主目录、临时文件和日志不会打包。
 验证会将 ZIP 解压到另一目录，直接运行其中的 `bash.exe`，检查工具、主目录、工作目录、别名、包依赖和启动器保留情况，并验证 `init.bat` 的系统环境变量写入。
 
-其他环境的空目录会在打包前清理；保留 `/etc/profile`、`/etc/msystem`、pacman 配置等正常运行所需的文件。
-后续更新 `filesystem` 包可能恢复空目录；重新构建时会再次清理。
+官方基础包附带的其他环境空目录会保留，但其中不包含工具链文件，也不安装对应的 `mingw-w64-*` 软件包。
+保留 `/etc/profile`、`/etc/msystem`、pacman 配置等正常运行所需的文件。
 `scripts/customize.sh` 只用于构建中的全新安装。
 
 本项目基于 [dirkarnez/msys2-portable](https://github.com/dirkarnez/msys2-portable)，使用 [msys2/setup-msys2](https://github.com/msys2/setup-msys2)。

@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 # Executed by the extracted package's bash.exe --login.
 set -euo pipefail
+trap 'printf "Package check failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
 [[ "$MSYSTEM" == MSYS ]]
-[[ "$HOME" == "$(/usr/bin/cygpath -u "$USERPROFILE")" ]]
+expected_home=$(/usr/bin/cygpath -u "$USERPROFILE")
+if [[ "$HOME" != "$expected_home" ]]; then
+    printf 'Expected Windows HOME <%s>, got <%s>\n' "$expected_home" "$HOME" >&2
+    /usr/bin/getent passwd "$(id -u)"
+    exit 1
+fi
 [[ "$PWD" == "$(/usr/bin/cygpath -u "$MSYS2_TEST_CWD")" ]]
 [[ "$(alias vi)" == "alias vi='vim'" ]]
 grep -Fxq 'db_home: windows' /etc/nsswitch.conf

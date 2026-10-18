@@ -8,7 +8,7 @@ $savedEnvironment = @{}
 $names = @('HOME', 'MSYSTEM', 'MSYS2_PATH_TYPE', 'CHERE_INVOKING', 'OLDPWD', 'SHLVL', 'MSYS2_TEST_CWD')
 foreach ($name in $names) {
     $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
-    [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+    Remove-Item "Env:$name" -ErrorAction SilentlyContinue
 }
 $env:MSYSTEM = 'MSYS'
 $env:MSYS2_PATH_TYPE = 'minimal'
@@ -21,7 +21,11 @@ try {
 } finally {
     Pop-Location
     foreach ($name in $names) {
-        [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name], 'Process')
+        if ($null -eq $savedEnvironment[$name]) {
+            Remove-Item "Env:$name" -ErrorAction SilentlyContinue
+        } else {
+            [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name], 'Process')
+        }
     }
 }
 

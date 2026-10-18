@@ -1,0 +1,9 @@
+# MSYS2 Portable: initialize a directly launched interactive bash.exe.
+# /etc/profile sources bash.bashrc again, so mark this shell before loading it.
+if [[ $- == *i* ]] && ! shopt -q login_shell && \
+    [[ -z ${_MSYS2_PORTABLE_PROFILE_LOADED:-} ]]; then
+    _MSYS2_PORTABLE_PROFILE_LOADED=1
+    export -n _MSYS2_PORTABLE_PROFILE_LOADED
+    source /etc/profile
+fi
+

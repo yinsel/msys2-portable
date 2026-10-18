@@ -5,19 +5,20 @@
 
 ## 使用
 
-将 ZIP 解压到固定目录，例如 `D:\Tools\msys2`。在 CMD 中运行：
+将 ZIP 解压到固定目录，例如 `D:\Tools\msys2`。直接双击 `usr\bin\bash.exe`，或在 CMD 中运行：
 
 ```bat
-"D:\Tools\msys2\usr\bin\bash.exe" --login -i
+"D:\Tools\msys2\usr\bin\bash.exe"
 ```
 
 PowerShell 中运行：
 
 ```powershell
-& 'D:\Tools\msys2\usr\bin\bash.exe' --login -i
+& 'D:\Tools\msys2\usr\bin\bash.exe'
 ```
 
-`--login` 用于加载 `/etc/profile` 和 `/etc/profile.d/env.sh`。
+交互式启动时无需添加 `-l`，系统 `bashrc` 会自动加载 `/etc/profile` 和 `/etc/profile.d/env.sh`，初始化 PATH、提示符和别名。
+`bash.exe --login -i` 仍可使用。普通的 `bash.exe -c` 或脚本执行保留 Bash 的非交互式行为；需要登录环境时使用 `-lc` 或 `--login`。
 `/etc/nsswitch.conf` 设置为 `db_home: windows`，通常使用 Windows 用户配置目录作为主目录。
 外部已经设置的 `HOME` 或用户自己的启动脚本仍可能覆盖默认行为。
 
@@ -72,6 +73,7 @@ fi
 ZIP 根目录包含 `init.bat`、`usr`、`etc`，并保留 `msys2.exe`、`msys2.ini`、`msys2.ico` 和 `msys2_shell.cmd`；构建用户的主目录、临时文件和日志不会打包。
 验证会将 ZIP 解压到另一目录，直接运行其中的 `bash.exe`，检查工具、主目录、工作目录、别名、包依赖和 MSYS 启动文件，并确认其他环境的目录、启动器、配置及图标均已删除，再验证 `init.bat` 的系统环境变量写入。
 验证还会从配置的南京大学镜像下载 MSYS 包数据库，并执行 `init.bat` 的 RunAs 重启路径；CI 已具有管理员权限，不会显示交互式 UAC 确认界面。
+启动验证使用干净的 Windows PATH，覆盖登录式、非登录交互式、嵌套交互式和非交互式 Bash。
 
 构建时删除 `mingw32`、`mingw64`、`ucrt64`、`clang32`、`clang64`、`clangarm64` 目录及其同名 `.exe`、`.ini`、`.ico` 文件，同时删除 `/etc/msystem.d/` 中对应的非 MSYS 环境配置。
 保留 `/etc/profile`、`/etc/msystem`、`/etc/msystem.d/MSYS`、pacman 配置等正常运行所需的文件。

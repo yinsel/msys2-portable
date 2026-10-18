@@ -1,75 +1,96 @@
-name: msys2-portable-action-workflow
+name: Build MSYS-only portable
+
 on:
   push:
-    # Sequence of patterns matched against refs/tags
-    tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
-      - 'c*'
-      
+    branches: [main]
+    tags: ['v*', 'c*']
+  pull_request:
+  workflow_dispatch:
+
 permissions:
-    contents: write
+  contents: read
 
 jobs:
   build:
-    strategy:
-      matrix:
-        include:
-          - { sys: mingw64, env: x86_64 }
-          - { sys: mingw32, env: i686 }
-          - { sys: ucrt64,  env: ucrt-x86_64 }
-          - { sys: clang64, env: clang-x86_64 }
     runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
 
       - id: msys2
         uses: msys2/setup-msys2@v2
         with:
-          msystem: ${{matrix.sys}}
+          msystem: MSYS
+          release: true
           update: true
+          cache: false
           install: >-
             curl
+            wget
             git
             make
-            base-devel
-            mingw-w64-${{matrix.env}}-gcc
-            mingw-w64-${{matrix.env}}-openssl
-            mingw-w64-${{matrix.env}}-toolchain
-            mingw-w64-${{matrix.env}}-yasm
+            openssh
+            vim
 
-      - continue-on-error: true
-        shell: cmd
-        run: |
-          cd /d "D:/a/msys2-portable/msys2-portable" &&^
-          dir
+      - name: Customize the fresh MSYS installation
+        shell: msys2 {0}
+        run: bash scripts/customize.sh
 
-      - continue-on-error: true
-        shell: cmd
+      - name: Archive portable installation
+        id: archive
+        shell: pwsh
+        env:
+          MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
         run: |
-          cd /d "D:\a\_temp\setup-msys2" &&^
-          dir
-          
-            
-      # - run: |
-      #     echo $(pwd) && \
-      #     ls && \
-      #     cd '${{ github.workspace }}' && \
-      #     ls && \
-      #     g++ --version
-          
-      - name: Archive Release
-        uses: thedoctor0/zip-release@master
+          $version = $env:GITHUB_SHA.Substring(0, 7)
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $version = $env:GITHUB_REF_NAME -replace '[^A-Za-z0-9._-]', '-'
+          }
+          $archive = Join-Path $env:RUNNER_TEMP "msys2-portable-$version-msys-x86_64.zip"
+          Push-Location $env:MSYS2_ROOT
+          try {
+            # Exclude the build account's files and temporary data.
+            & 7z a -tzip $archive '.\*' '-x!home\*' '-x!tmp\*' '-x!var\log\*'
+            if ($LASTEXITCODE -ne 0) { throw 'Archive creation failed.' }
+          } finally {
+            Pop-Location
+          }
+          & 7z t $archive
+          if ($LASTEXITCODE -ne 0) { throw 'Archive integrity check failed.' }
+          "path=$archive" >> $env:GITHUB_OUTPUT
+
+      - name: Test the extracted package using bash.exe
+        shell: pwsh
+        env:
+          MSYS2_ARCHIVE: ${{ steps.archive.outputs.path }}
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'msys2-portable-test'
+          & 7z x $env:MSYS2_ARCHIVE "-o$root" -y
+          if ($LASTEXITCODE -ne 0) { throw 'Archive extraction failed.' }
+          & ./scripts/test-package.ps1 -Root $root
+
+      - name: Upload tested package
+        uses: actions/upload-artifact@v4
         with:
-          type: 'zip'
-          directory: "${{ steps.msys2.outputs.msys2-location }}"
-          filename: "${{ github.event.repository.name }}-${{ github.ref_name }}-${{ matrix.sys }}-${{matrix.env}}.zip"
-          
-      - name: Release prebuilt
+          name: msys2-portable-msys-x86_64
+          path: ${{ steps.archive.outputs.path }}
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: msys2-portable-msys-x86_64
+          path: dist
+
+      - name: Release tested package
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "${{ steps.msys2.outputs.msys2-location }}/${{ github.event.repository.name }}-${{ github.ref_name }}-${{ matrix.sys }}-${{matrix.env}}.zip"
+          artifacts: dist/*.zip
           allowUpdates: true
           token: ${{ secrets.GITHUB_TOKEN }}
